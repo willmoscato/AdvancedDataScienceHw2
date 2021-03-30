@@ -174,16 +174,26 @@ lending_lasso_tune <- lending_lasso_wf %>%
   tune_grid(resamples = lending_cv,
             grid = penalty_grid,
             control= control_grid)
-
-lending_lasso_tune %>% 
-  show_best(metric = "roc_auc")
-
+lending_lasso_tune
 ```
+
+
+
+
+```{r}
+lending_lasso_tune %>%
+  show_best(metric = "accuracy")
+```
+
 
 ```{r}
 lending_lasso_tune %>% 
-  show_best(metric = "accuracy")
+  collect_metrics() %>% 
+  filter(.config == "Preprocessor1_Model13")
 ```
+
+
+
 
 7. Set up the recipe and the pre-processing steps to build a random forest model. You shouldn't have to do as many steps. The only step you should need to do is making all integers numeric. 
 
@@ -191,14 +201,6 @@ lending_lasso_tune %>%
 ranger_recipe <- recipe(Class ~., data = lending_training) %>% 
   step_mutate_at(all_numeric(), fn = ~as.numeric(.)) %>% 
   step_mutate(verification_status = as.factor(ifelse(verification_status == "Source_Verified", "Verified", verification_status))) %>% 
-  step_mutate(annual_inc = case_when(annual_inc <= 9875 ~ 10,
-                                     annual_inc > 9875 && annual_inc <= 40125 ~ 12,
-                                     annual_inc > 40125 && annual_inc <= 85526 ~ 22,
-                                     annual_inc > 85526 && annual_inc <= 163300 ~ 24,
-                                     annual_inc >163300 && annual_inc <= 207350 ~ 32,
-                                     annual_inc > 207350 && annual_inc <= 518400 ~ 35,
-                                     annual_inc > 518400 ~ 37)) %>% 
-  step_mutate(annual_inc = as.factor(annual_inc)) %>% 
   step_rm(acc_now_delinq, delinq_amnt)
 
 ranger_recipe %>% 
@@ -213,7 +215,7 @@ ranger_recipe %>%
 lending_ranger <- rand_forest(mtry = tune(), 
               min_n = tune(), 
               trees = 100) %>% 
-  set_mode("regression") %>% 
+  set_mode("classification") %>% 
   set_engine("ranger")
 
 lending_ranger_wf <- 
@@ -229,11 +231,33 @@ lending_ranger_wf
 
 
 ```{r}
+set.seed(494)
 
+rf_grid <- grid_regular(min_n(), finalize(mtry(), lending_training %>% select(-Class)), levels = 3)
+
+ctrl_res <- control_stack_grid()
+
+ranger_cv <- lending_ranger_wf %>% 
+  tune_grid(resamples = lending_cv,
+           grid = rf_grid,
+           control = ctrl_res)
+
+collect_metrics(ranger_cv)
 ```
 
 
 10. Find the best tuning parameters. What is the are the accuracy and area under the ROC curve for the model with those tuning parameters?
+
+```{r}
+ranger_cv %>% 
+  show_best(metric = "accuracy")
+```
+```{r}
+ranger_cv %>% 
+  collect_metrics() %>% 
+  filter(.config == "Preprocessor1_Model4")
+```
+
 
 11. Use functions from the `DALEX` and `DALEXtra` libraries to create a histogram and boxplot of the residuals from the training data. How do they look? Any interesting behavior?
 
