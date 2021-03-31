@@ -118,8 +118,7 @@ lending_testing <- testing(lending_split)
 
 ```{r}
 lending_recipe <- recipe(Class ~ ., data = lending_training) %>% 
-  step_mutate_at(all_numeric(), fn = ~as.numeric(.)) %>% 
-  step_mutate(verification_status = as.factor(ifelse(verification_status == "Source_Verified", "Verified", verification_status))) %>% 
+  step_mutate_at(all_numeric(), fn = ~as.numeric(.)) %>%
   step_mutate(annual_inc = case_when(annual_inc <= 9875 ~ 10,
                                      annual_inc > 9875 && annual_inc <= 40125 ~ 12,
                                      annual_inc > 40125 && annual_inc <= 85526 ~ 22,
@@ -189,7 +188,7 @@ lending_lasso_tune %>%
 ```{r}
 lending_lasso_tune %>% 
   collect_metrics() %>% 
-  filter(.config == "Preprocessor1_Model13")
+  filter(.config == "Preprocessor1_Model12")
 ```
 
 
@@ -199,9 +198,7 @@ lending_lasso_tune %>%
 
 ```{r}
 ranger_recipe <- recipe(Class ~., data = lending_training) %>% 
-  step_mutate_at(all_numeric(), fn = ~as.numeric(.)) %>% 
-  step_mutate(verification_status = as.factor(ifelse(verification_status == "Source_Verified", "Verified", verification_status))) %>% 
-  step_rm(acc_now_delinq, delinq_amnt)
+  step_mutate_at(all_numeric(), fn = ~as.numeric(.))
 
 ranger_recipe %>% 
   prep(lending_training) %>% 
@@ -258,10 +255,58 @@ ranger_cv %>%
   filter(.config == "Preprocessor1_Model4")
 ```
 
+```{r}
+best <- ranger_cv %>% 
+  select_best(metric = "accuracy")
+
+lending_ranger_final_wf<- lending_ranger_wf %>% 
+  finalize_workflow(best)
+```
+
+
 
 11. Use functions from the `DALEX` and `DALEXtra` libraries to create a histogram and boxplot of the residuals from the training data. How do they look? Any interesting behavior?
 
+```{r}
+set.seed(494)
+ranger_fit <- lending_ranger_final_wf %>% 
+  fit(lending_training)
+
+
+rf_explain <- 
+  explain_tidymodels(
+    model = ranger_fit,
+    data = lending_training %>% select(-Class), 
+    y = as.numeric(lending_training$Class == "good)",
+    label = "rf",
+    type = "classification"
+  ))
+
+rf_mod_perf <-  model_performance(rf_explain)
+
+
+hist_plot <- 
+  plot(rf_mod_perf, 
+       geom = "histogram")
+box_plot <-
+  plot(rf_mod_perf, 
+       geom = "boxplot")
+
+hist_plot + box_plot
+```
+
+
 12. Use `DALEX` functions to create a variable importance plot from this model. What are the most important variables? 
+
+```{r}
+rf_var_imp <- 
+  model_parts(
+    rf_explain
+    )
+
+plot(rf_var_imp)
+```
+
 
 13. Write a function called `cp_profile` to make a CP profile. The function will take an explainer, a new observation, and a variable name as its arguments and create a CP profile for a quantitative predictor variable. You will need to use the `predict_profile()` function inside the function you create - put the variable name there so the plotting part is easier. You'll also want to use `aes_string()` rather than `aes()` and quote the variables. Use the `cp_profile()` function to create one CP profile of your choosing. Be sure to choose a variable that is numeric, not integer. There seem to be issues with those that I'm looking into.
 
