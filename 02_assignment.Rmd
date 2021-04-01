@@ -119,14 +119,6 @@ lending_testing <- testing(lending_split)
 ```{r}
 lending_recipe <- recipe(Class ~ ., data = lending_training) %>% 
   step_mutate_at(all_numeric(), fn = ~as.numeric(.)) %>%
-  step_mutate(annual_inc = case_when(annual_inc <= 9875 ~ 10,
-                                     annual_inc > 9875 && annual_inc <= 40125 ~ 12,
-                                     annual_inc > 40125 && annual_inc <= 85526 ~ 22,
-                                     annual_inc > 85526 && annual_inc <= 163300 ~ 24,
-                                     annual_inc >163300 && annual_inc <= 207350 ~ 32,
-                                     annual_inc > 207350 && annual_inc <= 518400 ~ 35,
-                                     annual_inc > 518400 ~ 37)) %>% 
-  step_mutate(annual_inc = as.factor(annual_inc)) %>% 
   step_rm(acc_now_delinq, delinq_amnt) %>% 
   step_normalize(all_predictors(),
                  -all_nominal()) %>% 
@@ -188,7 +180,7 @@ lending_lasso_tune %>%
 ```{r}
 lending_lasso_tune %>% 
   collect_metrics() %>% 
-  filter(.config == "Preprocessor1_Model12")
+  filter(.config == "Preprocessor1_Model01")
 ```
 
 
@@ -277,10 +269,9 @@ rf_explain <-
   explain_tidymodels(
     model = ranger_fit,
     data = lending_training %>% select(-Class), 
-    y = as.numeric(lending_training$Class == "good)",
-    label = "rf",
-    type = "classification"
-  ))
+    y = as.numeric(lending_training$Class == "good"),
+    label = "rf"
+  )
 
 rf_mod_perf <-  model_performance(rf_explain)
 
@@ -314,14 +305,106 @@ For an extra challenge, write a function that will work for either a quantitativ
 
 If you need help with function writing check out the [Functions](https://r4ds.had.co.nz/functions.html) chapter of R4DS by Wickham and Grolemund.
 
+```{r}
+cp_profile <- function(x,y,z){
+  predict_profile(explainer = x, new_observation = y, variables = z) %>% 
+    rename(yhat = `_yhat_`) %>% 
+    ggplot(aes_string(x = z, y = "yhat"))+
+    geom_point()}
+
+obs <- lending_training %>%
+  slice(3)
+obs
+
+cp_profile(rf_explain, obs, "annual_inc")
+```
+
+
 
 14. Use `DALEX` functions to create partial dependence plots (with the CP profiles in gray) for the 3-4 most important variables. If the important variables are categorical, you can instead make a CP profile for 3 observations in the dataset and discuss how you could go about constructing a partial dependence plot for a categorical variable (you don't have to code it, but you can if you want an extra challenge). If it ever gives you an error that says, "Error: Can't convert from `VARIABLE` <double> to `VARIABLE` <integer> due to loss of precision", then remove that variable from the list. I seem to have figured out why it's doing that, but I don't know how to fix it yet.
 
+```{r}
+rf_pdp <- model_profile(explainer = rf_explain,
+                        variables = c("annual_inc", "int_rate", "open_il_12m"))
+
+plot(rf_pdp, 
+     geom = "profiles")
+```
+
+
 15. Fit one more model type of your choosing that will feed into the stacking model. 
+
+```{r}
+lending_knn <-
+  nearest_neighbor(
+    neighbors = tune("k")
+  ) %>%
+  set_engine("kknn") %>% 
+  set_mode("classification")
+
+
+lending_knn_wf <- 
+  workflow() %>% 
+  add_model(lending_knn) %>%
+  add_recipe(lending_recipe)
+
+lending_knn_tune <- 
+  lending_knn_wf %>% 
+  tune_grid(
+    lending_cv,
+    grid = 4,
+    control = control_grid
+  )
+```
+
 
 16. Create a model stack with the candidate models from the previous parts of the exercise and use the `blend_predictions()` function to find the coefficients of the stacked model. Create a plot examining the performance metrics for the different penalty parameters to assure you have captured the best one. If not, adjust the penalty. (HINT: use the `autoplot()` function). Which models are contributing most?
 
+```{r}
+lending_stack <- 
+  stacks() %>% 
+  add_candidates(ranger_cv) %>% 
+  add_candidates(lending_lasso_tune) %>% 
+  add_candidates(lending_knn_tune)
+
+lending_blend <- lending_stack %>% 
+  blend_predictions()
+
+lending_blend
+
+autoplot(lending_blend)
+```
+
+
 17. Fit the final stacked model using `fit_members()`. Apply the model to the test data and report the accuracy and area under the curve. Create a graph of the ROC and construct a confusion matrix. Comment on what you see. Save this final model using the `saveRDS()` function - see the [Use the model](https://advanced-ds-in-r.netlify.app/posts/2021-03-16-ml-review/#use-the-model) section of the `tidymodels` intro. We are going to use the model in the next part. You'll want to save it in the folder where you create your shiny app.
+
+
+```{r}
+lending_final_stack <- lending_blend %>% 
+  fit_members()
+
+lending_final_stack
+```
+
+
+```{r}
+lending_stack_test <- lending_testing %>% 
+  bind_cols(predict(lending_final_stack, new_data = lending_testing, type = "prob")) %>% 
+  bind_cols(predict(lending_final_stack, new_data = lending_testing))
+
+lending_stack_test %>% 
+  accuracy(.pred_class, Class)
+
+lending_stack_test %>% 
+  roc_auc(Class, .pred_bad)
+
+
+autoplot(roc_curve(lending_stack_test, Class, .pred_bad))
+```
+```{r}
+
+```
+
 
 ## Shiny app
 
