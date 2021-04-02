@@ -98,8 +98,8 @@ lending_club_mod %>%
   add_n_miss() %>% 
   filter(n_miss_all == 1)
 ```
-
-
+\
+**There are no missing values**
 3. Split the data into training and test, putting 75\% in the training data.
 
 ```{r}
@@ -175,7 +175,8 @@ lending_lasso_tune
 lending_lasso_tune %>%
   show_best(metric = "accuracy")
 ```
-
+\
+**Best Lasso Tune**
 
 ```{r}
 lending_lasso_tune %>% 
@@ -241,6 +242,8 @@ collect_metrics(ranger_cv)
 ranger_cv %>% 
   show_best(metric = "accuracy")
 ```
+\
+**Best Rf Tune**
 ```{r}
 ranger_cv %>% 
   collect_metrics() %>% 
@@ -258,7 +261,8 @@ lending_ranger_final_wf<- lending_ranger_wf %>%
 
 
 11. Use functions from the `DALEX` and `DALEXtra` libraries to create a histogram and boxplot of the residuals from the training data. How do they look? Any interesting behavior?
-
+\
+**The boxplot shows us how much variance there is in the residuals, which is interesting. The histogram is fairly normal, which is what we expect**
 ```{r}
 set.seed(494)
 ranger_fit <- lending_ranger_final_wf %>% 
@@ -288,6 +292,8 @@ hist_plot + box_plot
 
 
 12. Use `DALEX` functions to create a variable importance plot from this model. What are the most important variables? 
+\
+**The most important variables are: the balance to credit limit on all trades, annual income, and interest rate.**
 
 ```{r}
 rf_var_imp <- 
@@ -360,6 +366,9 @@ lending_knn_tune <-
 
 16. Create a model stack with the candidate models from the previous parts of the exercise and use the `blend_predictions()` function to find the coefficients of the stacked model. Create a plot examining the performance metrics for the different penalty parameters to assure you have captured the best one. If not, adjust the penalty. (HINT: use the `autoplot()` function). Which models are contributing most?
 
+\
+**The models that are contributing the most are two of the random forests and one knn**
+
 ```{r}
 lending_stack <- 
   stacks() %>% 
@@ -402,7 +411,7 @@ lending_stack_test %>%
 autoplot(roc_curve(lending_stack_test, Class, .pred_bad))
 ```
 ```{r}
-
+saveRDS(lending_final_stack, file = "lending_final_stack.rds")
 ```
 
 
@@ -433,6 +442,8 @@ Specifically, you will do the following:
 ## Coded Bias
 
 Watch the [Code Bias](https://www.pbs.org/independentlens/films/coded-bias/) film and write a short reflection. If you want some prompts, reflect on: What part of the film impacted you the most? Was there a part that surprised you and why? What emotions did you experience while watching?
+\
+**I think that the part of this film that impacted me the most was seeing the extent that these facial recognition algorithms power. I was very shocked and horrified by the fact that based solely on facial recognition a teenager could be stopped and searched by the police. It made me hopeful, however, that some things seem to be changing and there seems to be more oversight on these algorithms now.**
 
 
 REMEMBER TO ADD YOUR GITHUB LINK AT THE TOP OF THE PAGE AND UNCOMMENT THE `knitr` OPTIONS.
