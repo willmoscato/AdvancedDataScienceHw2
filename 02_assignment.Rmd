@@ -7,13 +7,6 @@ output:
     df_print: paged
     code_download: true
 ---
-
-```{r setup, include=FALSE}
-#knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
-```
-
-```{r libraries}
-# SEE modeldata package for new datasets
 library(tidyverse)         # for graphing and data cleaning
 library(tidymodels)        # for modeling
 library(stacks)            # for stacking models
@@ -24,6 +17,13 @@ library(vip)               # for variable importance plots
 library(DALEX)             # for model interpretation  
 library(DALEXtra)          # for extension of DALEX
 library(patchwork)         # for combining plots nicely
+
+```{r setup, include=FALSE}
+#knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+```{r libraries}
+# SEE modeldata package for new datasets
 theme_set(theme_minimal()) # Lisa's favorite theme
 ```
 
@@ -409,7 +409,18 @@ lending_stack_test %>%
 
 
 autoplot(roc_curve(lending_stack_test, Class, .pred_bad))
+
 ```
+
+
+```{r}
+lending_stack_test %>% 
+  conf_mat(Class, .pred_class)
+```
+
+\
+**Both the sensitivity and specificty are almost 1 and the roc curve is basically just a triangle, as we should expect from such an accurate model.**
+
 ```{r}
 saveRDS(lending_final_stack, file = "lending_final_stack.rds")
 ```
@@ -448,4 +459,27 @@ Watch the [Code Bias](https://www.pbs.org/independentlens/films/coded-bias/) fil
 
 REMEMBER TO ADD YOUR GITHUB LINK AT THE TOP OF THE PAGE AND UNCOMMENT THE `knitr` OPTIONS.
 
+```{r}
+min_sqft <- min(lending_training$int_rate)
+max_sqft <- max(lending_training$int_rate)
+
+obs10 <- lending_club %>% slice(12)
+
+obs4_many <- obs10 %>% 
+  #there is probably a better way to do this
+  sample_n(size = 50, replace = TRUE) %>% 
+  select(-int_rate) %>% 
+  mutate(int_rate = seq(min_sqft, max_sqft, length.out = 50))
+
+obs4_many %>% 
+        select(int_rate) %>% 
+        bind_cols(
+            predict(lending_final_stack,
+                    new_data = obs4_many, type = "prob")) %>% 
+        ggplot(aes(x = int_rate,
+                   y = .pred_bad)) +
+        geom_line() +
+        labs(y = "Predicted Probability of Class Bad")
+        
+```
 
