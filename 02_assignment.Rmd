@@ -1,12 +1,21 @@
 ---
 title: 'Assignment #2'
-output: 
+output:
   html_document:
-    toc: true
-    toc_float: true
+    toc: yes
+    toc_float: yes
     df_print: paged
-    code_download: true
+    code_download: yes
+  pdf_document:
+    toc: yes
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+```{r libraries}
+# SEE modeldata package for new datasets
 library(tidyverse)         # for graphing and data cleaning
 library(tidymodels)        # for modeling
 library(stacks)            # for stacking models
@@ -18,12 +27,6 @@ library(DALEX)             # for model interpretation
 library(DALEXtra)          # for extension of DALEX
 library(patchwork)         # for combining plots nicely
 
-```{r setup, include=FALSE}
-#knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
-```
-
-```{r libraries}
-# SEE modeldata package for new datasets
 theme_set(theme_minimal()) # Lisa's favorite theme
 ```
 
@@ -41,6 +44,10 @@ From now on, GitHub should be part of your routine when doing assignments. I rec
 
 **Task**: When you are finished with the assignment, post a link below to the GitHub repo for the assignment. If you want to post it to your personal website, that's ok (not required). Make sure the link goes to a spot in the repo where I can easily find this assignment. For example, if you have a website with a blog and post the assignment as a blog post, link to the post's folder in the repo. As an example, I've linked to my GitHub stacking material [here](https://github.com/llendway/ads_website/tree/master/_posts/2021-03-22-stacking).
 
+\
+[Github HW Repo](https://github.com/willmoscato/AdvancedDataScienceHw2)
+[Github Shiny Repo](https://github.com/willmoscato/AdvancedDataScienceHw2Shiny)
+
 ## Modeling
 
 Before jumping into these problems, you should read through (and follow along with!) the [model stacking](https://advanced-ds-in-r.netlify.app/posts/2021-03-22-stacking/) and [global model interpretation](https://advanced-ds-in-r.netlify.app/posts/2021-03-24-imlglobal/) tutorials on the Course Materials tab of the course website.
@@ -53,11 +60,6 @@ The outcome we are interested in predicting is `Class`. And according to the dat
 
 1. Explore the data, concentrating on examining distributions of variables and examining missing values. 
 
-```{r}
-lending_club %>% 
-  ggplot(aes(y = addr_state)) +
-  geom_bar()
-```
 ```{r}
 lending_club %>% 
   ggplot(aes(x= funded_amnt))+
@@ -458,6 +460,10 @@ Watch the [Code Bias](https://www.pbs.org/independentlens/films/coded-bias/) fil
 
 
 REMEMBER TO ADD YOUR GITHUB LINK AT THE TOP OF THE PAGE AND UNCOMMENT THE `knitr` OPTIONS.
+
+This below graph is an example of what would have been on my shiny app if I could have gotten it to work. 
+
+
 
 ```{r}
 min_sqft <- min(lending_training$int_rate)
